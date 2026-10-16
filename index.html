@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>$ATLAS Price</title>
+  <title>Primero Prices</title>
   <style>
     body {
       margin: 0;
@@ -12,65 +12,105 @@
       align-items: center;
       justify-content: center;
       font-family: system-ui, -apple-system, sans-serif;
-      background: #0b1020;
-      color: #e8ecf5;
+      background: #1e1f22;
+      color: #dbdee1;
     }
-    .card {
-      text-align: center;
-      padding: 32px 40px;
-      border-radius: 16px;
-      background: #151b30;
-      box-shadow: 0 8px 30px rgba(0, 0, 0, 0.4);
+    .panel {
+      width: 280px;
+      padding: 16px 20px;
+      border-radius: 12px;
+      background: #2b2d31;
     }
-    h1 { margin: 0 0 8px; font-size: 1.2rem; color: #9aa4c0; }
-    #price { font-size: 3rem; font-weight: 700; margin: 8px 0; }
-    #change.up { color: #3ddc84; }
-    #change.down { color: #ff5c5c; }
-    #status { margin-top: 16px; font-size: 0.85rem; color: #6f7a99; }
+    h1 {
+      margin: 0 0 12px;
+      font-size: 0.95rem;
+      font-weight: 600;
+      color: #949ba4;
+    }
+    ul { list-style: none; margin: 0; padding: 0; }
+    li {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 8px 0;
+    }
+    li img {
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      background: #fff;
+    }
+    .price { font-size: 1.15rem; font-weight: 700; }
+    .symbol { font-size: 0.8rem; color: #949ba4; }
+    .up { color: #23a55a; }
+    .down { color: #f23f43; }
+    #status { margin-top: 12px; font-size: 0.75rem; color: #6d737d; }
   </style>
 </head>
 <body>
-  <div class="card">
-    <h1>Star Atlas ($ATLAS) / USD</h1>
-    <div id="price">Loading…</div>
-    <div id="change"></div>
+  <div class="panel">
+    <h1>Prices — 4</h1>
+    <ul id="list"><li>Loading…</li></ul>
     <div id="status"></div>
   </div>
 
   <script>
-    // Free CoinGecko endpoint — no API key needed.
+    // CoinGecko IDs, in the order they appear on the page.
+    const TOKENS = ["star-atlas", "star-atlas-dao", "solana", "bitcoin"];
+
+    // Free CoinGecko endpoint — no API key needed. One request returns the
+    // price, 24h change and icon for every token.
     const API_URL =
-      "https://api.coingecko.com/api/v3/simple/price" +
-      "?ids=star-atlas&vs_currencies=usd&include_24hr_change=true";
+      "https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd" +
+      "&ids=" + TOKENS.join(",");
     const REFRESH_MS = 60 * 1000; // 60 seconds
 
-    const priceEl = document.getElementById("price");
-    const changeEl = document.getElementById("change");
+    const listEl = document.getElementById("list");
     const statusEl = document.getElementById("status");
 
-    async function updatePrice() {
+    // Big prices get fewer decimals, tiny ones keep 3 significant digits:
+    // $81616, $104.19, $0.0113, $0.000146
+    function formatPrice(usd) {
+      if (usd >= 1000) return "$" + Math.round(usd);
+      if (usd >= 1) return "$" + usd.toFixed(2);
+      return "$" + usd.toPrecision(3);
+    }
+
+    async function updatePrices() {
       try {
         const response = await fetch(API_URL);
         if (!response.ok) throw new Error("HTTP " + response.status);
-        const data = await response.json();
-        const { usd, usd_24h_change } = data["star-atlas"];
+        const coins = await response.json();
 
-        // $ATLAS is worth a tiny fraction of a cent, so show 4 significant
-        // digits (e.g. $0.0001428) instead of a fixed number of decimals.
-        priceEl.textContent = "$" + usd.toPrecision(4);
+        listEl.innerHTML = "";
+        TOKENS.forEach((id, i) => {
+          const coin = coins.find(c => c.id === id);
+          if (!coin) return;
 
-        const change = usd_24h_change ?? 0;
-        changeEl.textContent = (change >= 0 ? "▲ " : "▼ ") + change.toFixed(2) + "% (24h)";
-        changeEl.className = change >= 0 ? "up" : "down";
+          // Green if the price is up over the last 24h, red if down.
+          const change = coin.price_change_percentage_24h ?? 0;
+          const direction = change >= 0 ? "up" : "down";
+
+          const row = document.createElement("li");
+          row.innerHTML = `
+            <img src="${coin.image}" alt="">
+            <div>
+              <div class="price ${direction}">${i + 1}.${formatPrice(coin.current_price)}</div>
+              <div class="symbol">${coin.symbol.toUpperCase()}
+                <span class="${direction}">${change >= 0 ? "▲" : "▼"} ${Math.abs(change).toFixed(2)}%</span>
+              </div>
+            </div>`;
+          listEl.appendChild(row);
+        });
 
         statusEl.textContent = "Updated " + new Date().toLocaleTimeString();
       } catch (err) {
-        statusEl.textContent = "Couldn't fetch price (" + err.message + "). Retrying in 60s.";
+        statusEl.textContent = "Couldn't fetch prices (" + err.message + "). Retrying in 60s.";
       }
     }
 
-    updatePrice();                         // run once right away
-    setInterval(updatePrice, REFRESH_MS);  // then every 60 seconds
+    updatePrices();                         // run once right away
+    setInterval(updatePrices, REFRESH_MS);  // then every 60 seconds
   </script>
 </body>
 </html>

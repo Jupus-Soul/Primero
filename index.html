@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>$ATLAS Price</title>
+  <style>
+    body {
+      margin: 0;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-family: system-ui, -apple-system, sans-serif;
+      background: #0b1020;
+      color: #e8ecf5;
+    }
+    .card {
+      text-align: center;
+      padding: 32px 40px;
+      border-radius: 16px;
+      background: #151b30;
+      box-shadow: 0 8px 30px rgba(0, 0, 0, 0.4);
+    }
+    h1 { margin: 0 0 8px; font-size: 1.2rem; color: #9aa4c0; }
+    #price { font-size: 3rem; font-weight: 700; margin: 8px 0; }
+    #change.up { color: #3ddc84; }
+    #change.down { color: #ff5c5c; }
+    #status { margin-top: 16px; font-size: 0.85rem; color: #6f7a99; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h1>Star Atlas ($ATLAS) / USD</h1>
+    <div id="price">Loading…</div>
+    <div id="change"></div>
+    <div id="status"></div>
+  </div>
+
+  <script>
+    // Free CoinGecko endpoint — no API key needed.
+    const API_URL =
+      "https://api.coingecko.com/api/v3/simple/price" +
+      "?ids=star-atlas&vs_currencies=usd&include_24hr_change=true";
+    const REFRESH_MS = 60 * 1000; // 60 seconds
+
+    const priceEl = document.getElementById("price");
+    const changeEl = document.getElementById("change");
+    const statusEl = document.getElementById("status");
+
+    async function updatePrice() {
+      try {
+        const response = await fetch(API_URL);
+        if (!response.ok) throw new Error("HTTP " + response.status);
+        const data = await response.json();
+        const { usd, usd_24h_change } = data["star-atlas"];
+
+        // $ATLAS is worth a fraction of a cent, so show extra decimals.
+        priceEl.textContent = "$" + usd.toFixed(6);
+
+        const change = usd_24h_change ?? 0;
+        changeEl.textContent = (change >= 0 ? "▲ " : "▼ ") + change.toFixed(2) + "% (24h)";
+        changeEl.className = change >= 0 ? "up" : "down";
+
+        statusEl.textContent = "Updated " + new Date().toLocaleTimeString();
+      } catch (err) {
+        statusEl.textContent = "Couldn't fetch price (" + err.message + "). Retrying in 60s.";
+      }
+    }
+
+    updatePrice();                         // run once right away
+    setInterval(updatePrice, REFRESH_MS);  // then every 60 seconds
+  </script>
+</body>
+</html>

@@ -55,8 +55,9 @@
         const data = await response.json();
         const { usd, usd_24h_change } = data["star-atlas"];
 
-        // $ATLAS is worth a fraction of a cent, so show extra decimals.
-        priceEl.textContent = "$" + usd.toFixed(6);
+        // $ATLAS is worth a tiny fraction of a cent, so show 4 significant
+        // digits (e.g. $0.0001428) instead of a fixed number of decimals.
+        priceEl.textContent = "$" + usd.toPrecision(4);
 
         const change = usd_24h_change ?? 0;
         changeEl.textContent = (change >= 0 ? "▲ " : "▼ ") + change.toFixed(2) + "% (24h)";
